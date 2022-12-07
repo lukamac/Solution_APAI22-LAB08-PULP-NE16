@@ -203,7 +203,7 @@ def create_layer(channels, spatial_dim, kernel_shape, ne16):
     if not ne16:
         w_save = w.permute(0, 2, 3, 1).type(torch.int32)
     else:
-        w_save = Ne16().conv_unroll(w, 8, layout="CoutCinK", dw=False)
+        w_save = Ne16().conv_unroll(w.numpy(), 8, layout="CoutCinK", dw=False)
     generate_vector_header(w_save, "weights")
 
     #norm_scale = torch.ones((1, channels, 1, 1), dtype=torch.int32)
