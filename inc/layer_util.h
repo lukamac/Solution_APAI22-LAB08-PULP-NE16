@@ -20,10 +20,10 @@ static void layer_stats(const int latency) {
     const float perf = (float)mac_ops / (float)latency;
 
     printf("Layer statistics:\n"
-           "- operations: %d MAC\n"
-           "- latency: %d cycles\n"
-           "- performance: %.2f MAC/cycle\n\n",
-           latency, mac_ops, perf);
+           " - operations: %d MAC\n"
+           " - latency: %d cycles\n"
+           " - performance: %.2f MAC/cycle\n\n",
+           mac_ops, latency, perf);
 }
 
 #endif  // __LAYER_UTIL_H__
