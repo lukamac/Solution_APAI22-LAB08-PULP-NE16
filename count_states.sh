@@ -1,8 +1,9 @@
 #!/bin/sh
+STATES="\bLOAD\b\|\bMATRIXVEC\b\|NORMQUANT_MULT\|NORMQUANT_BIAS\|\bSTREAMOUT\b"
 if [ $# -eq 0 ];
 then
-    grep "State" | sed 's/.*\(State .*$\)/\1/' | sort | uniq -c
+    grep $STATES | sed 's/.*State \(.*$\)/\1/' | sort | uniq -c
 else
-    grep "State" $1 | sed 's/.*\(State .*$\)/\1/' | sort | uniq -c
+    grep $STATES $1 | sed 's/.*State \(.*$\)/\1/' | sort | uniq -c
 fi
 
