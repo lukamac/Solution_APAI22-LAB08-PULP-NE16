@@ -1,9 +1,19 @@
 #!/bin/sh
-STATES="\bLOAD\b\|\bMATRIXVEC\b\|NORMQUANT_MULT\|NORMQUANT_BIAS\|\bSTREAMOUT\b"
+STATES="\bState LOAD\b\|\bState MATRIXVEC\b\|State NORMQUANT_MULT\|State NORMQUANT_BIAS\|\bState STREAMOUT\b"
+
 if [ $# -eq 0 ];
 then
-    grep $STATES | sed 's/.*State \(.*$\)/\1/' | sort | uniq -c
+    grep "$STATES" | sed 's/.*State \(.*$\)/\1/' | sort | uniq -c
+elif [ $# -eq 1 ];
+then
+    if [ -f $1 ]; then
+        grep "$STATES" $1 | sed 's/.*State \(.*$\)/\1/' | sort | uniq -c
+    else
+        echo "File doesn't exist."
+        return 1
+    fi
 else
-    grep $STATES $1 | sed 's/.*State \(.*$\)/\1/' | sort | uniq -c
+    echo "Unsupported number of arguments. Expected 0 or 1 arguments."
+    return 1
 fi
 
