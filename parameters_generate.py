@@ -59,15 +59,22 @@ def header_guard_end(filename):
 def includes():
     return "#include <pmsis.h>\n\n"
 
-def define(name, value):
-    return '#define {name} ({value})\n'.format(name=name, value=value)
+def define(name, expr):
+    if isinstance(expr, int):
+        expr = f'({expr})'
+    return f'#define {name.upper()} {expr}\n'
 
-def vector_end():
-    return ';\n\n'
+def vector_size(data):
+    if hasattr(data, 'numel'):
+        return data.numel()
+    elif hasattr(data, 'size'):
+        return data.size
+    else:
+        return len(data)
 
-def vector_definition(name, size):
+def vector_declaration(name, size):
     retval = ""
-    retval += define(f'{name.upper()}_SIZE', size)
+    retval += define(f'{name}_size', size)
     retval += f"PI_L1 uint8_t {name}[{name.upper()}_SIZE]"
     return retval
 
@@ -89,10 +96,16 @@ def vector_initial_value(data, elements_per_row=10, spaces=4):
     retval += '\n}'
     return retval
 
-def empty_vector(name, size):
+def vector_end():
+    return ';\n\n'
+
+def render_vector(name, init=None, size=None, elements_per_row=10, spaces=4):
+    size_ = vector_size(init) if init is not None else size
     retval = ""
-    retval += define('{NAME}_SIZE'.format(NAME=name.upper()), size)
-    retval += "PI_L1 uint8_t {name}[{NAME}_SIZE];\n\n".format(name=name, NAME=name.upper())
+    retval += vector_declaration(name, size_)
+    if init is not None:
+        retval += vector_initial_value(init, elements_per_row, spaces)
+    retval += vector_end()
     return retval
 
 def check(name):
@@ -116,64 +129,54 @@ f"""static void check_{name}() {{
 
 """
 
-def vector_size(data):
-    if hasattr(data, 'numel'):
-        return data.numel()
-    elif hasattr(data, 'size'):
-        return data.size
-    else:
-        return len(data)
-
-def render_vector(name, init=None, size=None, elements_per_row=10, spaces=4):
-    size_ = vector_size(init) if init is not None else size
-    retval = ""
-    retval += vector_definition(name, size_)
-    if init is not None:
-        retval += vector_initial_value(init, elements_per_row, spaces)
-    retval += vector_end()
-    return retval
-
-def generate_vector_header(data, name, golden=None):
+def generate_header(name, path, body):
     filename = name + '.h'
-    filepath = os.path.join('inc', 'data', filename)
-    print('Generating vector header file: {name} -> {filepath}'.format(name=name, filepath=filepath))
+    filepath = os.path.join('inc', path, filename)
 
-    filerender = ""
-    filerender += license(filename) + header_guard_begin(filename) + includes()
+    print(f'Generating header file -> {filepath}')
 
-    filerender += render_vector(name, init=data, size=vector_size(golden) if golden is not None else None)
+    filerender = license(filename)              \
+                 + header_guard_begin(filename) \
+                 + body                         \
+                 + header_guard_end(filename)
+
+    with open(filepath, 'w') as file:
+        file.write(filerender)
+
+def generate_vector_header(name, data, golden=None):
+    bodyrender = ""
+    bodyrender += includes()
+    bodyrender += render_vector(name, init=data, size=vector_size(golden) if golden is not None else None)
 
     if golden is not None:
-        filerender += render_vector('golden_' + name, init=golden)
-        filerender += check(name)
+        bodyrender += render_vector('golden_' + name, init=golden)
+        bodyrender += check(name)
         
-    filerender += header_guard_end(filename)
+    generate_header(name, 'data', bodyrender)
 
-    with open(filepath, 'w') as file:
-        file.write(filerender)
-
-def vector_dims(vector):
+def render_dims(name, dims):
     retval = ""
-    name = vector["name"]
-    for dim_name, dim_value in zip(vector["dim_names"], vector["shape"]):
-        retval += define('{NAME}_{DIM_NAME}'.format(NAME=name.upper(), DIM_NAME=dim_name.upper()), dim_value)
+    for dim_name, dim_value in zip(dims["names"], dims["shape"]):
+        retval += define(f'{name}_{dim_name}', dim_value)
     return retval
 
-def render_dims(vectors, filename):
-    filerender = ""
-    filerender += license(filename) + header_guard_begin(filename)
-    for vector in vectors:
-        filerender += vector_dims(vector)
-        filerender += '\n'
-    filerender += header_guard_end(filename)
-    return filerender
+def render_dummy(name, data):
+    return ""
 
-def generate_dims_header(vectors, filename='dims.h'):
-    filepath = os.path.join('inc', 'data', filename)
-    print('Generating dimensions header file: -> {filepath}'.format(filepath=filepath))
-    filerender = render_dims(vectors, filename)
-    with open(filepath, 'w') as file:
-        file.write(filerender)
+def generate_dims_header(name, info):
+    bodyrender = ""
+    for piece_of_info in info:
+        if piece_of_info["type"] == "dims":
+            render_func = render_dims
+        elif piece_of_info["type"] == "def":
+            render_func = define
+        else:
+            print(f"Render function not implemented for type {type}")
+            render_func = render_dummy
+        bodyrender += render_func(piece_of_info["name"], piece_of_info["data"])
+        bodyrender += '\n'
+
+    generate_header(name, 'data', bodyrender)
 
 def borders(bits, signed = False):
     low = -(2 ** (bits-1)) if signed else 0
@@ -194,32 +197,34 @@ def create_weight(channels, kernel_shape):
     size = (channels, channels , kernel_shape, kernel_shape)
     return torch.randint(low=0, high=5, size=size, dtype=torch.int32)
 
-def create_layer(channels, spatial_dim, kernel_shape, ne16):
+def create_layer(channels, spatial_dim, kernel_shape, outshift, ne16):
     x = create_input(channels, spatial_dim + kernel_shape - 1)
     x_save = x.permute(0, 2, 3, 1).type(torch.int32)
-    generate_vector_header(x_save, "input")
+    generate_vector_header("input", x_save)
 
     w = create_weight(channels, kernel_shape)
     if not ne16:
         w_save = w.permute(0, 2, 3, 1).type(torch.int32)
     else:
         w_save = Ne16().conv_unroll(w.numpy(), 8, layout="CoutCinK", dw=False)
-    generate_vector_header(w_save, "weights")
+    generate_vector_header("weights", w_save)
 
     #norm_scale = torch.ones((1, channels, 1, 1), dtype=torch.int32)
     norm_scale = np.ones((1, channels, 1, 1), dtype='<i4')
-    generate_vector_header(norm_scale.tobytes(), "normalization_scale")
+    generate_vector_header("normalization_scale", norm_scale.tobytes())
     
     y = F.conv2d(x, w).type(torch.int32)
     y = torch.from_numpy(norm_scale) * y
-    y = clip(y >> 8, 8)
+    y = clip(y >> outshift, 8)
     y_save = y.permute(0, 2, 3, 1).type(torch.int32)
-    generate_vector_header(None, "output", golden=y_save)
+    generate_vector_header("output", None, golden=y_save)
 
-    generate_dims_header([
-                             {"name": "input",   "shape": x_save.shape[1:], "dim_names": ["height", "width", "channel"]},
-                             {"name": "output",  "shape": y_save.shape[1:], "dim_names": ["height", "width", "channel"]},
-                             {"name": "weights", "shape": w.shape,          "dim_names": ["channel_out", "channel_in", "kernel_height", "kernel_width"]}
+    generate_dims_header('dims',
+                         [
+                             {"type":"dims", "name": "input",    "data": {"shape": x_save.shape[1:], "names": ["height", "width", "channel"]}},
+                             {"type":"dims", "name": "output",   "data": {"shape": y_save.shape[1:], "names": ["height", "width", "channel"]}},
+                             {"type":"dims", "name": "weights",  "data": {"shape": w.shape,          "names": ["channel_out", "channel_in", "kernel_height", "kernel_width"]}},
+                             {"type":"def",  "name": "outshift", "data": outshift}
                          ])
 
 if __name__ == '__main__':
@@ -230,7 +235,10 @@ if __name__ == '__main__':
                         help='Number of input and output channels. Default: 1')
     parser.add_argument('--output-spatial-dimensions', '-osd', dest='spatial_dimensions', type=int, default=1,
                         help='Output spatial dimension. Default 1')
+    parser.add_argument('--output-shift', '-os', dest='outshift', type=int, choices=list(range(32)), default=8,
+                        help='Shift amount of the output values')
     parser.add_argument('--ne16', default=False, action='store_true',
                         help='Use the NE16 accelerator.')
     args = parser.parse_args()
-    create_layer(channels = args.channels, spatial_dim = args.spatial_dimensions, kernel_shape=args.kernel_shape, ne16=args.ne16)
+    print(args)
+    create_layer(args.channels, args.spatial_dimensions, args.kernel_shape, args.outshift, args.ne16)

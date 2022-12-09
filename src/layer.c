@@ -54,7 +54,7 @@ void layer(void *args) {
 
     // TODO: What should I set this to?
     const nnx_quant_t nnx_quant = {
-        .shift_amount = 8,
+        .shift_amount = OUTSHIFT,
         .mode = quantMode8Bit,
         .function = quantFunctionRelu,
         .flag_rounding = FLAG_UNUSED
