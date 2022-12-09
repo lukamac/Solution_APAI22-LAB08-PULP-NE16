@@ -238,7 +238,7 @@ if __name__ == '__main__':
                         help='Number of output channels. Default: 32')
     parser.add_argument('--output-spatial-dimensions', '-osd', dest='spatial_dimensions', type=int, default=3,
                         help='Output spatial dimension. Default 3')
-    parser.add_argument('--output-shift', '-osh', dest='outshift', type=int, choices=list(range(32)), default=8,
-                        help='Shift amount of the output values')
+    parser.add_argument('--output-shift', '-osh', dest='outshift', type=int, choices=range(32), default=8,
+                        help='Shift amount of the output values after they are normalized. Choices: [0-31]')
     args = parser.parse_args()
     create_layer(args.cin, args.cout, args.spatial_dimensions, args.kernel_shape, args.outshift)
