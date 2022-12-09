@@ -1,5 +1,5 @@
 #!/bin/sh
-STATES="\bState LOAD\b\|\bState MATRIXVEC\b\|State NORMQUANT_MULT\|State NORMQUANT_BIAS\|\bState STREAMOUT\b"
+STATES="State"
 
 if [ $# -eq 0 ];
 then
