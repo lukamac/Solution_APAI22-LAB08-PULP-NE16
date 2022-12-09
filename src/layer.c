@@ -7,18 +7,12 @@
 #include "output.h"
 #include "weights.h"
 #include "normalization_scale.h"
-
-void layer_info() {
-    printf("Starting layer execution\n"
-           " - input: (%dx%dx%d)\n"
-           " - output: (%dx%dx%d)\n"
-           " - weights: (%dx%dx%dx%d)\n\n",
-           INPUT_HEIGHT, INPUT_WIDTH, INPUT_CHANNEL,
-           OUTPUT_HEIGHT, OUTPUT_WIDTH, OUTPUT_CHANNEL,
-           WEIGHTS_CHANNEL_OUT, WEIGHTS_KERNEL_HEIGHT, WEIGHTS_KERNEL_WIDTH, WEIGHTS_CHANNEL_IN);
-}
+#include "layer.h"
+#include "layer_util.h"
 
 void layer(void *args) {
+    layer_info();
+
     nnx_gvsoc_logging_activate();
 
     nnx_weights_t nnx_weights = {
@@ -106,11 +100,11 @@ void layer(void *args) {
 
     nnx_run();
 
-    const cycles = pi_perf_read(PI_PERF_CYCLES);
+    const int cycles = pi_perf_read(PI_PERF_CYCLES);
 
     nnx_term();
 
-    printf("Latency: %d cycles\n\n", cycles);
-
     check_output();
+
+    layer_stats(cycles);
 }

@@ -122,9 +122,9 @@ f"""static void check_{name}() {{
     }}
 
     if (n_err == 0)
-        printf("> Success! No errors found.\\n");
+        printf("> Success! No errors found.\\n\\n");
     else
-        printf("> Failure! Found %d/%d errors.\\n", n_err, {name.upper()}_SIZE);
+        printf("> Failure! Found %d/%d errors.\\n\\n", n_err, {name.upper()}_SIZE);
 }}
 
 """

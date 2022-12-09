@@ -7,7 +7,7 @@ void app_kickoff(void *args) {
     struct pi_cluster_conf cl_conf;
     struct pi_cluster_task cl_task;
 
-    layer_info();
+    printf("Starting layer execution.\n\n");
 
     pi_cluster_conf_init(&cl_conf);
     pi_open_from_conf(&cl_dev, &cl_conf);
