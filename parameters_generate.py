@@ -197,16 +197,13 @@ def create_weight(channels, kernel_shape):
     size = (channels, channels , kernel_shape, kernel_shape)
     return torch.randint(low=0, high=5, size=size, dtype=torch.int32)
 
-def create_layer(channels, spatial_dim, kernel_shape, outshift, ne16):
+def create_layer(channels, spatial_dim, kernel_shape, outshift):
     x = create_input(channels, spatial_dim + kernel_shape - 1)
     x_save = x.permute(0, 2, 3, 1).type(torch.int32)
     generate_vector_header("input", x_save)
 
     w = create_weight(channels, kernel_shape)
-    if not ne16:
-        w_save = w.permute(0, 2, 3, 1).type(torch.int32)
-    else:
-        w_save = Ne16().conv_unroll(w.numpy(), 8, layout="CoutCinK", dw=False)
+    w_save = Ne16().conv_unroll(w.numpy(), 8, layout="CoutCinK", dw=False)
     generate_vector_header("weights", w_save)
 
     #norm_scale = torch.ones((1, channels, 1, 1), dtype=torch.int32)
@@ -237,8 +234,6 @@ if __name__ == '__main__':
                         help='Output spatial dimension. Default 1')
     parser.add_argument('--output-shift', '-os', dest='outshift', type=int, choices=list(range(32)), default=8,
                         help='Shift amount of the output values')
-    parser.add_argument('--ne16', default=False, action='store_true',
-                        help='Use the NE16 accelerator.')
     args = parser.parse_args()
     print(args)
-    create_layer(args.channels, args.spatial_dimensions, args.kernel_shape, args.outshift, args.ne16)
+    create_layer(args.channels, args.spatial_dimensions, args.kernel_shape, args.outshift)
