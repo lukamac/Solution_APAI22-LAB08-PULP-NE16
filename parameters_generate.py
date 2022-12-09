@@ -193,21 +193,25 @@ def create_input(channels, spatial_dim):
     size = (1, channels, spatial_dim, spatial_dim)
     return torch.randint(low=0, high=100, size=size, dtype=torch.int32)
 
-def create_weight(channels, kernel_shape):
-    size = (channels, channels , kernel_shape, kernel_shape)
+def create_weights(shape):
+    """ Create weights
+
+    Shape is of layout (Cout, H, W, Cin)
+    """
+    size = (shape[0], shape[3], shape[1], shape[2])  # Torch expects layout (Cout, Cin, H, W)
     return torch.randint(low=0, high=5, size=size, dtype=torch.int32)
 
-def create_layer(channels, spatial_dim, kernel_shape, outshift):
-    x = create_input(channels, spatial_dim + kernel_shape - 1)
+def create_layer(cin, cout, spatial_dim, kernel_shape, outshift):
+    x = create_input(cin, spatial_dim + kernel_shape - 1)
     x_save = x.permute(0, 2, 3, 1).type(torch.int32)
     generate_vector_header("input", x_save)
 
-    w = create_weight(channels, kernel_shape)
+    w = create_weights((cout, kernel_shape, kernel_shape, cin))
     w_save = Ne16().conv_unroll(w.numpy(), 8, layout="CoutCinK", dw=False)
     generate_vector_header("weights", w_save)
 
     #norm_scale = torch.ones((1, channels, 1, 1), dtype=torch.int32)
-    norm_scale = np.ones((1, channels, 1, 1), dtype='<i4')
+    norm_scale = np.ones((1, cout, 1, 1), dtype='<i4')
     generate_vector_header("normalization_scale", norm_scale.tobytes())
     
     y = F.conv2d(x, w).type(torch.int32)
@@ -228,12 +232,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--kernel-shape', '-ks', dest='kernel_shape', type=int, choices=[1, 3], default=1,
                         help='Shape of the kernel. Choices: 1 or 3. Default: 1')
-    parser.add_argument('--channels', '-c', type=int, default=1,
-                        help='Number of input and output channels. Default: 1')
-    parser.add_argument('--output-spatial-dimensions', '-osd', dest='spatial_dimensions', type=int, default=1,
-                        help='Output spatial dimension. Default 1')
-    parser.add_argument('--output-shift', '-os', dest='outshift', type=int, choices=list(range(32)), default=8,
+    parser.add_argument('--channels-in', '-cin', dest='cin', type=int, default=16,
+                        help='Number of input channels. Default: 16')
+    parser.add_argument('--channels-out', '-cout', dest='cout', type=int, default=32,
+                        help='Number of output channels. Default: 32')
+    parser.add_argument('--output-spatial-dimensions', '-osd', dest='spatial_dimensions', type=int, default=3,
+                        help='Output spatial dimension. Default 3')
+    parser.add_argument('--output-shift', '-osh', dest='outshift', type=int, choices=list(range(32)), default=8,
                         help='Shift amount of the output values')
     args = parser.parse_args()
-    print(args)
-    create_layer(args.channels, args.spatial_dimensions, args.kernel_shape, args.outshift)
+    create_layer(args.cin, args.cout, args.spatial_dimensions, args.kernel_shape, args.outshift)
