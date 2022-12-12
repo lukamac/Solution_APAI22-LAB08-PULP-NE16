@@ -201,7 +201,7 @@ def create_weights(shape):
     size = (shape[0], shape[3], shape[1], shape[2])  # Torch expects layout (Cout, Cin, H, W)
     return torch.randint(low=0, high=5, size=size, dtype=torch.int32)
 
-def create_layer(cin, cout, spatial_dim, kernel_shape, outshift):
+def create_layer(cin, cout, spatial_dim, kernel_shape, outshift=8):
     x = create_input(cin, spatial_dim + kernel_shape - 1)
     x_save = x.permute(0, 2, 3, 1).type(torch.int32)
     generate_vector_header("input", x_save)
@@ -238,7 +238,5 @@ if __name__ == '__main__':
                         help='Number of output channels. Default: 32')
     parser.add_argument('--output-spatial-dimensions', '-osd', dest='spatial_dimensions', type=int, default=3,
                         help='Output spatial dimension. Default 3')
-    parser.add_argument('--output-shift', '-osh', dest='outshift', type=int, choices=range(32), default=8,
-                        help='Shift amount of the output values after they are normalized. Choices: [0-31]')
     args = parser.parse_args()
-    create_layer(args.cin, args.cout, args.spatial_dimensions, args.kernel_shape, args.outshift)
+    create_layer(args.cin, args.cout, args.spatial_dimensions, args.kernel_shape)
