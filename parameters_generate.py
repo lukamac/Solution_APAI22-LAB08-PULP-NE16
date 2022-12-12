@@ -239,4 +239,8 @@ if __name__ == '__main__':
     parser.add_argument('--output-spatial-dimensions', '-osd', dest='spatial_dimensions', type=int, default=3,
                         help='Output spatial dimension. Default 3')
     args = parser.parse_args()
+
+    # All the generated headers will go into 'inc/data' so create directory first
+    os.makedirs('inc/data', exist_ok=True)
+
     create_layer(args.cin, args.cout, args.spatial_dimensions, args.kernel_shape)
